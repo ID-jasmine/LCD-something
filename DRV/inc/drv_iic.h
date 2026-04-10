@@ -5,6 +5,7 @@
 
 typedef struct DRV_IIC_Bus DRV_IIC_Bus;
 
+// 虚拟函数表
 typedef struct {
     int (*init)(DRV_IIC_Bus *bus);
     void (*start)(DRV_IIC_Bus *bus);
@@ -15,8 +16,8 @@ typedef struct {
 } DRV_IIC_BusOps;
 
 struct DRV_IIC_Bus {
-    IIC_Handle_t handle;
     const DRV_IIC_BusOps *ops;
+    IIC_Handle_t handle;
     void *context;
 };
 

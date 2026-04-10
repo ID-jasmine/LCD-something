@@ -17,6 +17,7 @@ static const DRV_IIC_BusOps s_iic_bus_ops = {
     DRV_IIC_HW_WaitAck,
     DRV_IIC_HW_ReadByte,
 };
+//加硬件操作iic时，最科学的做法是定义一个新的操作集(包括里面的函数)，给新的对象绑定新的操作集
 
 static DRV_IIC_Bus s_iic_buses[DRV_IIC_BUS_COUNT];
 static uint8_t s_iic_bus_cfg_done = 0;
