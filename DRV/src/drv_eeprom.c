@@ -1,7 +1,7 @@
 #include "drv_eeprom.h"
 #include "drv_iic.h"
 
-static IIC_Handle_t *s_eeprom_iic = 0;
+static DRV_IIC_Bus *s_eeprom_bus = 0;
 
 // begin
 static int EEPROM_HW_Init(EepromDevice *dev);
@@ -9,7 +9,7 @@ static int EEPROM_HW_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
                                 uint8_t *buffer, uint16_t length);
 static int EEPROM_HW_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
                                  const uint8_t *buffer, uint16_t length);
-static IIC_Handle_t *EEPROM_GetIIC(void);
+static DRV_IIC_Bus *EEPROM_GetBus(void);
 
 // 实现操作集，化虚为实
 static const EepromOps s_eeprom_ops = {
@@ -87,47 +87,50 @@ static int EEPROM_HW_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
 }
 
 void EEPROM_Init(void) {
-    DRV_IIC_InitBus(DRV_IIC_BUS_EEPROM);
-    s_eeprom_iic = DRV_IIC_GetHandle(DRV_IIC_BUS_EEPROM);
+    s_eeprom_bus = DRV_IIC_GetBus(DRV_IIC_BUS_EEPROM);
+    if (s_eeprom_bus == 0) {
+        return;
+    }
+    (void)DRV_IIC_Bus_Init(s_eeprom_bus);
 }
 
 void EEPROM_WriteByte(uint8_t wordAddress, uint8_t data) {
-    IIC_Handle_t *iic = EEPROM_GetIIC();
-    if (iic == 0) {
+    DRV_IIC_Bus *bus = EEPROM_GetBus();
+    if (bus == 0 || bus->ops == 0) {
         return;
     }
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_WRITE);
-    IIC_Wait_Ack(iic);
-    IIC_Send(iic, wordAddress);
-    IIC_Wait_Ack(iic);
-    IIC_Send(iic, data);
-    IIC_Wait_Ack(iic);
-    IIC_Stop(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_WRITE);
+    bus->ops->wait_ack(bus);
+    bus->ops->send(bus, wordAddress);
+    bus->ops->wait_ack(bus);
+    bus->ops->send(bus, data);
+    bus->ops->wait_ack(bus);
+    bus->ops->stop(bus);
     
     EEPROM_Delay_5ms(); // 必须阻塞等待
 }
 
 uint8_t EEPROM_ReadByte(uint8_t wordAddress) {
     uint8_t data = 0;
-    IIC_Handle_t *iic = EEPROM_GetIIC();
-    if (iic == 0) {
+    DRV_IIC_Bus *bus = EEPROM_GetBus();
+    if (bus == 0 || bus->ops == 0) {
         return 0;
     }
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_WRITE);
-    IIC_Wait_Ack(iic);
-    IIC_Send(iic, wordAddress);
-    IIC_Wait_Ack(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_WRITE);
+    bus->ops->wait_ack(bus);
+    bus->ops->send(bus, wordAddress);
+    bus->ops->wait_ack(bus);
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_READ);
-    IIC_Wait_Ack(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_READ);
+    bus->ops->wait_ack(bus);
 
-    data = IIC_ReadByte(iic, 1);
-    IIC_Stop(iic);
+    data = bus->ops->read_byte(bus, 1);
+    bus->ops->stop(bus);
     return data;
 }
 
@@ -135,45 +138,45 @@ uint8_t EEPROM_ReadByte(uint8_t wordAddress) {
 
 void EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length) {
     if (length == 0) return;
-    IIC_Handle_t *iic = EEPROM_GetIIC();
-    if (iic == 0) {
+    DRV_IIC_Bus *bus = EEPROM_GetBus();
+    if (bus == 0 || bus->ops == 0) {
         return;
     }
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_WRITE);
-    IIC_Wait_Ack(iic);
-    IIC_Send(iic, wordAddress);
-    IIC_Wait_Ack(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_WRITE);
+    bus->ops->wait_ack(bus);
+    bus->ops->send(bus, wordAddress);
+    bus->ops->wait_ack(bus);
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_READ);
-    IIC_Wait_Ack(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_READ);
+    bus->ops->wait_ack(bus);
 
     for (uint16_t i = 0; i < length; i++) {
-        buffer[i] = IIC_ReadByte(iic, (i == length - 1) ? 1 : 0);
+        buffer[i] = bus->ops->read_byte(bus, (i == length - 1) ? 1 : 0);
     }
-    IIC_Stop(iic);
+    bus->ops->stop(bus);
 }
 
 // 内部单页写入
 static void EEPROM_WritePage(uint8_t wordAddress, uint8_t* buffer, uint8_t length) {
     if (length == 0 || length > 16) return;
-    IIC_Handle_t *iic = EEPROM_GetIIC();
-    if (iic == 0) {
+    DRV_IIC_Bus *bus = EEPROM_GetBus();
+    if (bus == 0 || bus->ops == 0) {
         return;
     }
 
-    IIC_Start(iic);
-    IIC_Send(iic, EEPROM_ADDR_WRITE);
-    IIC_Wait_Ack(iic);
-    IIC_Send(iic, wordAddress);
-    IIC_Wait_Ack(iic);
+    bus->ops->start(bus);
+    bus->ops->send(bus, EEPROM_ADDR_WRITE);
+    bus->ops->wait_ack(bus);
+    bus->ops->send(bus, wordAddress);
+    bus->ops->wait_ack(bus);
     for (uint8_t i = 0; i < length; i++) {
-        IIC_Send(iic, buffer[i]);
-        IIC_Wait_Ack(iic);
+        bus->ops->send(bus, buffer[i]);
+        bus->ops->wait_ack(bus);
     }
-    IIC_Stop(iic);
+    bus->ops->stop(bus);
     EEPROM_Delay_5ms(); // 一页只需等1次
 }
 
@@ -193,9 +196,9 @@ void EEPROM_WriteBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length) {
     }
 }
 
-static IIC_Handle_t *EEPROM_GetIIC(void) {
-    if (s_eeprom_iic == 0) {
+static DRV_IIC_Bus *EEPROM_GetBus(void) {
+    if (s_eeprom_bus == 0) {
         EEPROM_Init();
     }
-    return s_eeprom_iic;
+    return s_eeprom_bus;
 }

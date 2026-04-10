@@ -125,25 +125,25 @@ static const uint16_t canvas_points[] = {
 // ================= 核心 API 实现 =================
 
 void DRC_ET6934_Init(void) {
-    IIC_Handle_t *iic1;
-    IIC_Handle_t *iic2;
-    IIC_Handle_t *iic3;
+    DRV_IIC_Bus *bus1;
+    DRV_IIC_Bus *bus2;
+    DRV_IIC_Bus *bus3;
 
     DRV_IIC_InitBus(DRV_IIC_BUS_LED1);
     DRV_IIC_InitBus(DRV_IIC_BUS_LED2);
     DRV_IIC_InitBus(DRV_IIC_BUS_LED3);
 
-    iic1 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED1);
-    iic2 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED2);
-    iic3 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED3);
-    if (iic1 == 0 || iic2 == 0 || iic3 == 0) {
+    bus1 = DRV_IIC_GetBus(DRV_IIC_BUS_LED1);
+    bus2 = DRV_IIC_GetBus(DRV_IIC_BUS_LED2);
+    bus3 = DRV_IIC_GetBus(DRV_IIC_BUS_LED3);
+    if (bus1 == 0 || bus2 == 0 || bus3 == 0) {
         return;
     }
 
     // 1. 调用您的 BSP 初始化函数
-    ET6934_Init(&screen1, iic1, ET6934_ADDR_FIXED);
-    ET6934_Init(&screen2, iic2, ET6934_ADDR_FIXED);
-    ET6934_Init(&screen3, iic3, ET6934_ADDR_FIXED);
+    ET6934_Init(&screen1, &bus1->handle, ET6934_ADDR_FIXED);
+    ET6934_Init(&screen2, &bus2->handle, ET6934_ADDR_FIXED);
+    ET6934_Init(&screen3, &bus3->handle, ET6934_ADDR_FIXED);
     
     // 2. 清空 DRC 层的虚拟显存
     DRC_ET6934_ClearAll();
