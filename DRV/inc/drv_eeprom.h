@@ -8,6 +8,30 @@
 #define EEPROM_ADDR_WRITE 0xA0
 #define EEPROM_ADDR_READ  0xA1
 
+typedef struct EepromDevice EepromDevice;
+
+typedef struct {
+	int (*init)(EepromDevice *dev);
+	int (*read_buffer)(EepromDevice *dev, uint8_t wordAddress, uint8_t *buffer,
+					   uint16_t length);
+	int (*write_buffer)(EepromDevice *dev, uint8_t wordAddress,
+						const uint8_t *buffer, uint16_t length);
+} EepromOps;
+
+struct EepromDevice {
+	const EepromOps *ops;
+	void *context;
+	uint8_t page_size;
+};
+
+extern EepromDevice g_eeprom_dev;
+
+int EEPROM_Device_Init(EepromDevice *dev);
+int EEPROM_Device_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
+							 uint8_t *buffer, uint16_t length);
+int EEPROM_Device_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
+							  const uint8_t *buffer, uint16_t length);
+
 void EEPROM_Init(void);
 void EEPROM_WriteByte(uint8_t wordAddress, uint8_t data);
 uint8_t EEPROM_ReadByte(uint8_t wordAddress);

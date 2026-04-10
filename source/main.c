@@ -46,7 +46,7 @@ int32_t main(void) {
 
     BSP_GPIO_init();
     BSP_GPIO_Unused_Init();
-    EEPROM_Init();
+    (void)EEPROM_Device_Init(&g_eeprom_dev);
     DRV_ADC_Init();
     BSP_RTC_Init(12, 0);
     DRV_Touch_Init();
