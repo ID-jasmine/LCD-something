@@ -1,7 +1,6 @@
 #ifndef __DRV_EEPROM_H
 #define __DRV_EEPROM_H
 
-#include "bsp_iic.h"
 #include <stdint.h>
 
 // 硬件设备地址
@@ -10,6 +9,7 @@
 
 typedef struct EepromDevice EepromDevice;
 
+// eeprom操作集(虚拟函数表)
 typedef struct {
 	int (*init)(EepromDevice *dev);
 	int (*read_buffer)(EepromDevice *dev, uint8_t wordAddress, uint8_t *buffer,
@@ -18,8 +18,9 @@ typedef struct {
 						const uint8_t *buffer, uint16_t length);
 } EepromOps;
 
+// 通用设备对象
 struct EepromDevice {
-	const EepromOps *ops;
+	const EepromOps *ops;   
 	void *context;
 	uint8_t page_size;
 };
@@ -38,6 +39,6 @@ uint8_t EEPROM_ReadByte(uint8_t wordAddress);
 
 // 高级连续读写接口 (带智能分页)
 void EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length);
-void EEPROM_WriteBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length);
+void EEPROM_WriteBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length);                              
 
 #endif

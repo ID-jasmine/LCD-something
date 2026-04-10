@@ -1,4 +1,5 @@
 #include "drv_et6934.h"
+#include "drv_iic.h"
 
 static ET6934_Handle_t screen1;
 static ET6934_Handle_t screen2;
@@ -123,7 +124,22 @@ static const uint16_t canvas_points[] = {
 
 // ================= 核心 API 实现 =================
 
-void DRC_ET6934_Init(IIC_Handle_t* iic1, IIC_Handle_t* iic2, IIC_Handle_t* iic3) {
+void DRC_ET6934_Init(void) {
+    IIC_Handle_t *iic1;
+    IIC_Handle_t *iic2;
+    IIC_Handle_t *iic3;
+
+    DRV_IIC_InitBus(DRV_IIC_BUS_LED1);
+    DRV_IIC_InitBus(DRV_IIC_BUS_LED2);
+    DRV_IIC_InitBus(DRV_IIC_BUS_LED3);
+
+    iic1 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED1);
+    iic2 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED2);
+    iic3 = DRV_IIC_GetHandle(DRV_IIC_BUS_LED3);
+    if (iic1 == 0 || iic2 == 0 || iic3 == 0) {
+        return;
+    }
+
     // 1. 调用您的 BSP 初始化函数
     ET6934_Init(&screen1, iic1, ET6934_ADDR_FIXED);
     ET6934_Init(&screen2, iic2, ET6934_ADDR_FIXED);

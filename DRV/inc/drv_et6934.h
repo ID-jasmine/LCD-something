@@ -36,7 +36,7 @@ typedef enum {
 /* ------------------- API 函数区 ------------------- */
 
 // 1. 初始化中间层 
-void DRC_ET6934_Init(IIC_Handle_t* iic1, IIC_Handle_t* iic2, IIC_Handle_t* iic3);
+void DRC_ET6934_Init(void);
 
 // 2. 将内存中的显存数据统一刷新到屏幕 (建议放在定时器或主循环中周期调用)
 void DRC_ET6934_Refresh(void);

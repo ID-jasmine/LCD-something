@@ -7,31 +7,18 @@
 
 #include "bsp_can.h"
 #include "bsp_gpio.h"
-#include "bsp_iic.h"
 #include "bsp_rtc.h"
 #include "bsp_sys.h"
 
 #include "drv_adc.h"
 #include "drv_eeprom.h"
 #include "drv_et6934.h"
+#include "drv_iic.h"
 #include "drv_touch.h"
 
 #include "app_settings.h"
 #include "app_ui.h"
 #include "app_vehicle.h"
-
-IIC_Handle_t iic_led1 = {.scl_port = GpioPortA,
-                         .scl_pin = GpioPin7,
-                         .sda_port = GpioPortA,
-                         .sda_pin = GpioPin6};
-IIC_Handle_t iic_led2 = {.scl_port = GpioPortB,
-                         .scl_pin = GpioPin7,
-                         .sda_port = GpioPortB,
-                         .sda_pin = GpioPin6};
-IIC_Handle_t iic_led3 = {.scl_port = GpioPortA,
-                         .scl_pin = GpioPin5,
-                         .sda_port = GpioPortA,
-                         .sda_pin = GpioPin4};
 
 static volatile uint32_t sys_1ms_cnt = 0; // 1ms
 static volatile uint8_t rtc_time_1s_flag = 0;
@@ -45,6 +32,7 @@ int32_t main(void) {
     SysTick_Init();
 
     BSP_GPIO_init();
+    DRV_IIC_InitAll();
     BSP_GPIO_Unused_Init();
     (void)EEPROM_Device_Init(&g_eeprom_dev);
     DRV_ADC_Init();
@@ -77,7 +65,7 @@ int32_t main(void) {
                 Gpio_SetIO(GpioPortC, GpioPin4);
                 ZiJian_Start = 0;
                 // delay_Xms_block(1000);  // 等电压稳定
-                DRC_ET6934_Init(&iic_led1, &iic_led2, &iic_led3);
+                DRC_ET6934_Init();
             } else {
                 // 电门关掉：断电、清除状态
                 if (last_ign_state == 1) {

@@ -2,7 +2,7 @@
 
 #include "app_vehicle.h"
 #include "bsp_can.h"
-#include "drv_eeprom.h"
+#include "drv_iic.h"
 #include "gpio.h"
 
 void BSP_GPIO_init(void) {
@@ -164,5 +164,5 @@ void LPM_GPIO_Wakeup_Config(void) {
     // 这样所有的上下拉状态、数字输入模式都会完全恢复到正常工作状态
     BSP_GPIO_init();
     BSP_CAN_Init();
-    EEPROM_Init();
+    DRV_IIC_InitAll();
 }
