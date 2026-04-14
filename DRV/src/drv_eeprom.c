@@ -1,5 +1,6 @@
 #include "drv_eeprom.h"
 #include "drv_iic.h"
+#include "drv_time.h"
 
 static DRV_IIC_Bus *s_eeprom_bus = 0;
 
@@ -26,13 +27,10 @@ EepromDevice g_eeprom_dev = {
 };
 // end
 
-// 外部声明你的毫秒获取函数
-extern uint32_t Get_SystemMs(void); 
-
 // 内部阻塞延时函数
 static void EEPROM_Delay_5ms(void) {
-    uint32_t start = Get_SystemMs();
-    while (Get_SystemMs() - start < 6); // 死等至少5毫秒以上
+    uint32_t start = DRV_Time_Millis();
+    while (DRV_Time_Millis() - start < 6); // 死等至少5毫秒以上
 }
 
 // api接口实现

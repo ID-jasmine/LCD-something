@@ -2,10 +2,10 @@
 
 #include "app_ui.h"
 #include "app_vehicle.h"
-#include "bsp_can.h"
+#include "drv_can.h"
+#include "drv_time.h"
 #include "drv_touch.h"
 
-#include "main.h"
 #include "rtc.h"
 
 uint16_t sys_tire_perimeter = 1619;
@@ -23,7 +23,7 @@ void UI_Button_Task(void) {
         // 只要在设置模式下有按键动作，刷新 10s 计时器
         if (current_display_mode == MODE_TIME_SET_HOUR ||
             current_display_mode == MODE_TIME_SET_MIN) {
-            setting_timer = Get_SystemMs();
+            setting_timer = DRV_Time_Millis();
         }
 
         if (evt == TOUCH_EVENT_LONG) {
@@ -41,11 +41,11 @@ void UI_Button_Task(void) {
                 case MODE_CLOCK:
                     current_display_mode = MODE_TIME_SET_HOUR;
                     // 进入设置模式时，必须立刻刷新计时器！防止被下面的超时逻辑秒杀
-                    setting_timer = Get_SystemMs();
+                    setting_timer = DRV_Time_Millis();
                     break;
                 case MODE_TIME_SET_HOUR:
                     current_display_mode = MODE_TIME_SET_MIN;
-                    setting_timer = Get_SystemMs(); // 切换分钟时也刷新一下
+                    setting_timer = DRV_Time_Millis(); // 切换分钟时也刷新一下
                     break;
                 case MODE_TIME_SET_MIN: {
                     stc_rtc_time_t time;
@@ -101,7 +101,7 @@ void UI_Button_Task(void) {
     // 2. 超时判断必须放在外层！即使 evt 是 NONE 也要时刻检查是否超时
     if (current_display_mode == MODE_TIME_SET_HOUR ||
         current_display_mode == MODE_TIME_SET_MIN) {
-        if (Get_SystemMs() - setting_timer >= 10000) {
+        if (DRV_Time_Millis() - setting_timer >= 10000) {
             // 超时退出并自动保存当前设定的时间
             stc_rtc_time_t time;
             if (Ok == Rtc_ReadDateTime(&time)) {

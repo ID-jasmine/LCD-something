@@ -2,7 +2,7 @@
 
 #include "can.h"
 #include "gpio.h"
-#include "main.h"
+#include "drv_time.h"
 #include <stdbool.h>
 
 // 定义全局变量
@@ -62,7 +62,7 @@ static CanMsgMonitor_t g_can_monitors[] = {
 
 // 可放在100ms刷新一次数据
 void CAN_Monitor_Task(void) {
-    uint32_t current_time = Get_SystemMs();
+    uint32_t current_time = DRV_Time_Millis();
 
     // 超时监控检测
     for (int i = 0; i < sizeof(g_can_monitors) / sizeof(g_can_monitors[0]); i++) {
@@ -285,7 +285,7 @@ void Can_IRQHandler() {
 
         for (int i = 0; i < sizeof(g_can_monitors) / sizeof(g_can_monitors[0]); i++) {
             if (g_can_monitors[i].msg_id == receivedId) {
-                g_can_monitors[i].last_rx_time = Get_SystemMs();
+                g_can_monitors[i].last_rx_time = DRV_Time_Millis();
                 g_can_monitors[i].is_online = true;
                 g_can_monitors[i].has_ever_received = true;
                 g_can_monitors[i].is_updated = true;

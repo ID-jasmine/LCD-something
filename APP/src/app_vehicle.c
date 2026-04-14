@@ -1,11 +1,10 @@
 #include "app_vehicle.h"
 
-#include "main.h"
-
 #include "app_settings.h"
 #include "drv_adc.h"
 #include "drv_eeprom.h"
 #include "drv_et6934.h"
+#include "drv_time.h"
 
 
 #include "gpio.h"
@@ -438,8 +437,8 @@ void Load_Mileage_From_EEPROM(void) {
             break; // 只要有一个能读出来，立刻跳出重试
 
         // 如果都读不出来，千万别急着清零，等 30ms 再试一次！
-        uint32_t start = Get_SystemMs();
-        while (Get_SystemMs() - start < 30)
+        uint32_t start = DRV_Time_Millis();
+        while (DRV_Time_Millis() - start < 30)
             ;
     }
 

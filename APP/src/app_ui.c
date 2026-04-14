@@ -1,10 +1,10 @@
 #include "app_ui.h"
 
 #include "app_vehicle.h"
-#include "bsp_can.h"
+#include "drv_can.h"
 #include "drv_et6934.h"
+#include "drv_time.h"
 #include "drv_touch.h"
-#include "main.h"
 
 
 volatile uint8_t ZiJian_Start = 0;
@@ -22,11 +22,11 @@ void UI_SelfCheck(void) {
     static uint32_t start_ms = 0;
 
     if (!is_running) {
-        start_ms = Get_SystemMs();
+        start_ms = DRV_Time_Millis();
         is_running = 1;
     }
 
-    uint32_t now = Get_SystemMs();
+    uint32_t now = DRV_Time_Millis();
     uint32_t elapsed = now - start_ms;
 
     if (elapsed < 3000) {
@@ -208,7 +208,7 @@ static void Render_FaultCode(uint16_t code) {
 
 // 渲染油量状态 (保持不变)
 static void Render_Fuel(FuelState_t state) {
-    bool blink_500ms = ((Get_SystemMs() / 500) % 2 == 0);
+    bool blink_500ms = ((DRV_Time_Millis() / 500) % 2 == 0);
     switch (state) {
     case FUEL_STATE_ERR_FLASH:
         DRC_ET6934_SetIndicator(IND_FUEL_YELLOW, true);
@@ -252,7 +252,7 @@ static void Render_Fuel(FuelState_t state) {
 
 // 渲染电量状态 (保持不变)
 static void Render_Battery(BatteryState_t state) {
-    bool blink_500ms = ((Get_SystemMs() / 500) % 2 == 0);
+    bool blink_500ms = ((DRV_Time_Millis() / 500) % 2 == 0);
     switch (state) {
     case BAT_STATE_1_FLASH:
         DRC_ET6934_SetIndicator(IND_BATTERY_ALARM, blink_500ms);
@@ -310,7 +310,7 @@ void UI_UpdateNormalDisplay(void) {
     DRC_ET6934_SetIndicator(IND_ABS, is_ABS_on);
     DRC_ET6934_SetIndicator(IND_TCS, is_TCS_on);
 
-    bool blink_500ms = ((Get_SystemMs() / 500) % 2 == 0);
+    bool blink_500ms = ((DRV_Time_Millis() / 500) % 2 == 0);
 
     // 水温灯控制逻辑
     if (engine_water_temp >= 125.0f) {

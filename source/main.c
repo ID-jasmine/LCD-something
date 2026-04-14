@@ -5,15 +5,16 @@
 // 睡眠
 #include "lpm.h"
 
-#include "bsp_can.h"
 #include "bsp_gpio.h"
 #include "bsp_rtc.h"
 #include "bsp_sys.h"
 
+#include "drv_can.h"
 #include "drv_adc.h"
 #include "drv_eeprom.h"
 #include "drv_et6934.h"
 #include "drv_iic.h"
+#include "drv_time.h"
 #include "drv_touch.h"
 
 #include "app_settings.h"
@@ -38,7 +39,7 @@ int32_t main(void) {
     DRV_ADC_Init();
     BSP_RTC_Init(12, 0);
     DRV_Touch_Init();
-    BSP_CAN_Init();
+    DRV_CAN_Init();
     WDT_Init();
 
     while (1) {
@@ -104,7 +105,7 @@ int32_t main(void) {
                 if (sys_1ms_cnt - last_100ms_time >= 100) {
                     last_100ms_time = sys_1ms_cnt;
 
-                    CAN_Monitor_Task();                  // CAN 超时监控
+                    DRV_CAN_Monitor_Task();              // CAN 超时监控
                     SpeedDriver = SpeedDriver_Process(); // 车速调用
                     rpmDriver = RpmDriver_Process();     // 转速调用
                     vehicle_sensor_process();            // 车辆传感器更新ADC
@@ -163,8 +164,8 @@ uint32_t Get_SystemMs(void) {
 
 // 内部阻塞延时函数
 void delay_Xms_block(volatile uint32_t time) {
-    uint32_t start = Get_SystemMs();
-    while (Get_SystemMs() - start < time)
+    uint32_t start = DRV_Time_Millis();
+    while (DRV_Time_Millis() - start < time)
         ; // 死等time时间
 }
 

@@ -1,14 +1,11 @@
 #include "drv_touch.h"
-#include "main.h"
+#include "drv_time.h"
 #include "gpio.h"
 
 #define READ_TOUCH_PIN()    Gpio_GetInputIO(GpioPortC, GpioPin0)
 
 /* 定义消抖时间 (单位: ms)。触摸芯片一般信号较好，20ms通常足够 */
 #define TOUCH_DEBOUNCE_MS   20
-
-/* 外部获取系统时间戳的函数声明 */
-extern uint32_t Get_SystemMs(void);
 
 /* 触摸按键控制结构体 */
 typedef struct {
@@ -37,7 +34,7 @@ void DRV_Touch_Init(void) {
 void DRV_Touch_Task(void) {
     // 1. 读取当前引脚电平
     uint8_t current_reading = READ_TOUCH_PIN();
-    uint32_t current_time = Get_SystemMs();
+    uint32_t current_time = DRV_Time_Millis();
 
     // 2. 状态消抖逻辑
     if (current_reading != touch_k1.raw_state) {

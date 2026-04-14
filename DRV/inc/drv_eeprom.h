@@ -7,6 +7,7 @@
 #define EEPROM_ADDR_WRITE 0xA0
 #define EEPROM_ADDR_READ  0xA1
 
+// 声明结构体类型
 typedef struct EepromDevice EepromDevice;
 
 // eeprom操作集(虚拟函数表)

@@ -1,4 +1,6 @@
 #include "bsp_rtc.h"
+#include "drv_time.h"
+#include "wdt.h"
 
 
 void BSP_RTC_Init(uint8_t Hour, uint8_t Minute) {
@@ -6,9 +8,9 @@ void BSP_RTC_Init(uint8_t Hour, uint8_t Minute) {
 	// 开启 RTC 时钟
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralRtc, TRUE); 
 
-	uint32_t start_ms = Get_SystemMs();
+	uint32_t start_ms = DRV_Time_Millis();
 	uint8_t count = 0;
-	while ((Get_SystemMs() - start_ms) < 500) {
+	while ((DRV_Time_Millis() - start_ms) < 500) {
 		count++;
 		Wdt_Feed();
 		if(count >= 4)break;
