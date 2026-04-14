@@ -6,12 +6,6 @@
 
 
 void BSP_CAN_Init(void);
-
-extern volatile float engine_water_temp;
-extern volatile uint8_t can_fault_count;
-extern volatile uint16_t can_fault_codes[32];
-
-extern void CAN_Monitor_Task(void);
-extern void Send_CAN_Msg_0x220(void);
+bool BSP_CAN_Send(uint32_t id, const uint8_t *data, uint8_t len);
 
 #endif /* __BSP_CAN_H__ */

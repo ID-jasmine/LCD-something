@@ -47,6 +47,26 @@ void BSP_GPIO_init(void) {
     EnableNvic(PORTB_IRQn, IrqLevel0, TRUE);
 }
 
+void BSP_GPIO_CanInit(void) {
+    stc_gpio_cfg_t stcGpioCfg;
+
+    stcGpioCfg.enDir = GpioDirOut;
+    stcGpioCfg.enDrv = GpioDrvH;
+    stcGpioCfg.enOD = GpioOdDisable;
+    stcGpioCfg.enCtrlMode = GpioFastIO;
+    
+    // 低电平启动CAN收发器
+    Gpio_Init(GpioPortA, GpioPin8, &stcGpioCfg);
+    Gpio_ClrIO(GpioPortA, GpioPin8);
+
+    Gpio_Init(GpioPortB, GpioPin9, &stcGpioCfg);
+    Gpio_SetAfMode(GpioPortB, GpioPin9, GpioAf5);
+
+    stcGpioCfg.enDir = GpioDirIn;
+    Gpio_Init(GpioPortB, GpioPin8, &stcGpioCfg);
+    Gpio_SetAfMode(GpioPortB, GpioPin8, GpioAf3);
+}
+
 // 未使用及备用引脚的低功耗（模拟输入）初始化
 void BSP_GPIO_Unused_Init(void) {
     // 确保 GPIO 外设时钟已开启（如果放在 BSP_GPIO_init 里面，这句可以省去）

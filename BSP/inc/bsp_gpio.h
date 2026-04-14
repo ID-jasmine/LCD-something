@@ -5,6 +5,8 @@
 
 void BSP_GPIO_init(void);
 
+void BSP_GPIO_CanInit(void);
+
 void LPM_GPIO_Sleep_Config(void);
 
 void LPM_GPIO_Wakeup_Config(void);
