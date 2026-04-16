@@ -20,6 +20,7 @@ typedef struct {
     uint8_t raw_data_0x101[8];
     uint8_t raw_data_0x402[8];
     uint8_t fault_rx_idx;
+    // 这个2和3是一起的
 } CAN_Context;
 
 static const uint16_t s_fault_ids[71] = {
@@ -30,10 +31,15 @@ static const uint16_t s_fault_ids[71] = {
     0x0509, 0x0511, 0x0560, 0x0562, 0x0563, 0x0627, 0x0628, 0x0629, 0x0650, 0x0691, 0x0692, 0x1098,
     0x1099, 0x1507, 0x1508, 0x2177, 0x2178, 0x2187, 0x2188, 0x2232, 0x2270, 0x2271, 0x2300};
 
+
+static void WaterTemp_Timeout_Handle(void);
+
+static void FaultCode_Timeout_Handle(void);
+
 static CAN_Context s_can_context = {
     .monitors = {
-        {0x101, 2000, 0, false, false, false, 0},
-        {0x402, 3000, 0, false, false, false, 0},
+        {0x101, 2000, 0, false, false, false, WaterTemp_Timeout_Handle},
+        {0x402, 3000, 0, false, false, false, FaultCode_Timeout_Handle},
     },
     .raw_data_0x101 = {0},
     .raw_data_0x402 = {0},
@@ -42,7 +48,9 @@ static CAN_Context s_can_context = {
 
 volatile float engine_water_temp = 0.0f;
 volatile uint8_t can_fault_count = 0;
-volatile uint16_t can_fault_codes[32] = {0};
+
+#define MAX_FAULT_CODES 32
+volatile uint16_t can_fault_codes[MAX_FAULT_CODES] = {0};
 
 // 二分查找法验证故障码是否合法
 static bool Is_Valid_Fault_Code(uint16_t code) {
@@ -77,13 +85,13 @@ static void FaultCode_Timeout_Handle(void) {
 static int CAN_Device_HW_Init(CAN_Device *dev);
 static int CAN_Device_HW_MonitorTask(CAN_Device *dev);
 static int CAN_Device_HW_Send220(CAN_Device *dev);
-static void CAN_Device_HW_OnRxFrame(CAN_Device *dev, uint32_t received_id, const uint8_t data[8]);
+static void CAN_Device_HW_HandleRxFrame(CAN_Device *dev, uint32_t received_id, const uint8_t data[8]);
 
 static const CAN_Ops s_can_ops = {
     .init = CAN_Device_HW_Init,
     .monitor_task = CAN_Device_HW_MonitorTask,
     .send_0x220 = CAN_Device_HW_Send220,
-    .on_rx_frame = CAN_Device_HW_OnRxFrame,
+    .handle_rx_frame = CAN_Device_HW_HandleRxFrame,
 };
 
 CAN_Device g_can_dev = {
@@ -135,12 +143,12 @@ void DRV_CAN_Send_0x220(void) {
     (void)CAN_Device_Send220(&g_can_dev);
 }
 
-void DRV_CAN_OnRxFrame(uint32_t received_id, const uint8_t data[8]) {
-    if (g_can_dev.ops == 0 || g_can_dev.ops->on_rx_frame == 0) {
+void DRV_CAN_HandleRxFrame(uint32_t received_id, const uint8_t data[8]) {
+    if (g_can_dev.ops == 0 || g_can_dev.ops->handle_rx_frame == 0) {
         return;
     }
 
-    g_can_dev.ops->on_rx_frame(&g_can_dev, received_id, data);
+    g_can_dev.ops->handle_rx_frame(&g_can_dev, received_id, data);
 }
 
 static int CAN_Device_HW_Init(CAN_Device *dev) {
@@ -157,9 +165,10 @@ static int CAN_Device_HW_MonitorTask(CAN_Device *dev) {
         return -1;
     }
 
+    // 超时监控检测
     for (int i = 0; i < (int)(sizeof(context->monitors) / sizeof(context->monitors[0])); i++) {
         CanMsgMonitor_t *monitor = &context->monitors[i];
-
+        // 在系统拿到第一帧报文之前，系统保持沉默/离线观察状态
         if (monitor->has_ever_received) {
             if (current_time - monitor->last_rx_time > monitor->timeout_ms) {
                 if (monitor->is_online) {
@@ -174,8 +183,13 @@ static int CAN_Device_HW_MonitorTask(CAN_Device *dev) {
         }
     }
 
+    // 2. 协议解析任务
+    // --- 0x101 ---
+    // 只在有新数据更新时才解析，避免重复解析同一帧数据导致的闪烁和性能浪费
     if (context->monitors[0].is_online && context->monitors[0].is_updated) {
         if ((context->raw_data_0x101[6] & 0x80) == 0) {
+            // --- 水温解析 (WaterTemperature) ---
+            // 物理值 = 原始值 * 0.1 - 273
             uint16_t raw_water_temp = (uint16_t)((context->raw_data_0x101[4] << 8) | context->raw_data_0x101[5]);
             engine_water_temp = (float)raw_water_temp * 0.1f - 273.0f;
         }
@@ -183,9 +197,11 @@ static int CAN_Device_HW_MonitorTask(CAN_Device *dev) {
         context->monitors[0].is_updated = false;
     }
 
+    // --- 0x402 ---
     if (context->monitors[1].is_online && context->monitors[1].is_updated) {
         uint8_t current_count = context->raw_data_0x402[3];
-
+        current_count = (current_count < MAX_FAULT_CODES) ? current_count : MAX_FAULT_CODES - 1; // 安全保护，防止异常数据导致数组越界
+        // 当故障数量发生变化时，立刻重置接收索引
         if (current_count != can_fault_count) {
             can_fault_count = current_count;
             context->fault_rx_idx = 0;
@@ -219,7 +235,7 @@ static int CAN_Device_HW_Send220(CAN_Device *dev) {
     return BSP_CAN_Send(0x220u, tx_data, 8) ? 0 : -1;
 }
 
-static void CAN_Device_HW_OnRxFrame(CAN_Device *dev, uint32_t received_id, const uint8_t data[8]) {
+static void CAN_Device_HW_HandleRxFrame(CAN_Device *dev, uint32_t received_id, const uint8_t data[8]) {
     CAN_Context *context = CAN_GetContext(dev);
 
     if (context == 0 || data == 0) {
@@ -227,7 +243,8 @@ static void CAN_Device_HW_OnRxFrame(CAN_Device *dev, uint32_t received_id, const
     }
 
     for (int i = 0; i < (int)(sizeof(context->monitors) / sizeof(context->monitors[0])); i++) {
-        if (context->monitors[i].msg_id == received_id) {
+        if (context->monitors[i].msg_id == received_id) 
+        {
             context->monitors[i].last_rx_time = DRV_Time_Millis();
             context->monitors[i].is_online = true;
             context->monitors[i].has_ever_received = true;

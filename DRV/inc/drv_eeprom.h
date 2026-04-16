@@ -28,6 +28,11 @@ struct EepromDevice {
 
 extern EepromDevice g_eeprom_dev;
 
+// 默认实例门面接口（推荐给上层使用）
+int DRV_EEPROM_Init(void);
+int DRV_EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t *buffer, uint16_t length);
+int DRV_EEPROM_WriteBuffer(uint8_t wordAddress, const uint8_t *buffer, uint16_t length);
+
 int EEPROM_Device_Init(EepromDevice *dev);
 int EEPROM_Device_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
 							 uint8_t *buffer, uint16_t length);

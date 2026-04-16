@@ -11,6 +11,7 @@ static int EEPROM_HW_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
 static int EEPROM_HW_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
                                  const uint8_t *buffer, uint16_t length);
 static DRV_IIC_Bus *EEPROM_GetBus(void);
+static EepromDevice *EEPROM_GetDefaultDevice(void); // like this
 
 // 实现操作集，化虚为实
 static const EepromOps s_eeprom_ops = {
@@ -34,6 +35,18 @@ static void EEPROM_Delay_5ms(void) {
 }
 
 // api接口实现
+int DRV_EEPROM_Init(void) {
+    return EEPROM_Device_Init(EEPROM_GetDefaultDevice());
+}
+
+int DRV_EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t *buffer, uint16_t length) {
+    return EEPROM_Device_ReadBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer, length);
+}
+
+int DRV_EEPROM_WriteBuffer(uint8_t wordAddress, const uint8_t *buffer, uint16_t length) {
+    return EEPROM_Device_WriteBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer, length);
+}
+
 int EEPROM_Device_Init(EepromDevice *dev) {
     if (dev == 0 || dev->ops == 0 || dev->ops->init == 0) {
         return -1;
@@ -199,4 +212,8 @@ static DRV_IIC_Bus *EEPROM_GetBus(void) {
         EEPROM_Init();
     }
     return s_eeprom_bus;
+}
+
+static EepromDevice *EEPROM_GetDefaultDevice(void) {
+    return &g_eeprom_dev;
 }

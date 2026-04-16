@@ -412,9 +412,9 @@ void Save_Mileage_To_EEPROM(void) {
 
     // 奇偶交替写入：偶数存 A 区，奇数存 B 区
     if (eeprom_seq % 2 == 0) {
-        (void)EEPROM_Device_WriteBuffer(&g_eeprom_dev, ADDR_SLOT_A, buffer, 8);
+        (void)DRV_EEPROM_WriteBuffer(ADDR_SLOT_A, buffer, 8);
     } else {
-        (void)EEPROM_Device_WriteBuffer(&g_eeprom_dev, ADDR_SLOT_B, buffer, 8);
+        (void)DRV_EEPROM_WriteBuffer(ADDR_SLOT_B, buffer, 8);
     }
 }
 void Load_Mileage_From_EEPROM(void) {
@@ -425,8 +425,8 @@ void Load_Mileage_From_EEPROM(void) {
     while (retry--) {
         validA = 0;
         validB = 0;
-        (void)EEPROM_Device_ReadBuffer(&g_eeprom_dev, ADDR_SLOT_A, bufA, 8);
-        (void)EEPROM_Device_ReadBuffer(&g_eeprom_dev, ADDR_SLOT_B, bufB, 8);
+        (void)DRV_EEPROM_ReadBuffer(ADDR_SLOT_A, bufA, 8);
+        (void)DRV_EEPROM_ReadBuffer(ADDR_SLOT_B, bufB, 8);
 
         if (bufA[6] == calc_checksum(bufA, 6) && bufA[7] == 0x5A)
             validA = 1;

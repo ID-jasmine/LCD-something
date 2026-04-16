@@ -25,8 +25,8 @@ void BSP_CAN_Init(void) {
     stcCanInitCfg.stcWarningLimit.CanErrorWarningLimitVal = 96;
     stcCanInitCfg.stcWarningLimit.CanWarningLimitVal = 96;
 
-    // 【关键】配置 500kbps 波特率
-    // 注意：这里的具体数值取决于给 CAN 外设分配的系统时钟频率！
+    // 配置 500kbps 波特率
+    // 这里的具体数值取决于给 CAN 外设分配的系统时钟频率
     // 假设 CAN 时钟是 16MHz，如果要 500kbps，需要分频和时间段组合。
     // 波特率 = CAN时钟 / (PRESC+1) / (SEG_1+2 + SEG_2+1 )
     // 采样点 (SEG_1+2) / (SEG_1+2 + SEG_2+1) 0.75最佳
@@ -106,8 +106,7 @@ void Can_IRQHandler() {
         CAN_Receive(&rxFrame);
         CAN_IrqFlgClr(CanRxIrqFlg);
 
-        uint32_t receivedId = rxFrame.StdID;
-        DRV_CAN_OnRxFrame(receivedId, rxFrame.Data);
+        DRV_CAN_HandleRxFrame(rxFrame.StdID, rxFrame.Data);
 
         // 清除可能的错误/仲裁丢失标志，防止中断挂死
         if (TRUE == CAN_IrqFlgGet(CanErrorIrqFlg)) {
