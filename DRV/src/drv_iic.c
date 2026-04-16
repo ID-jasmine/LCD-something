@@ -10,12 +10,12 @@ static uint8_t DRV_IIC_HW_ReadByte(DRV_IIC_Bus *bus, uint8_t ack);
 static void DRV_IIC_ApplyDefaultConfig(void);
 
 static const DRV_IIC_BusOps s_iic_bus_ops = {
-    DRV_IIC_HW_Init,
-    DRV_IIC_HW_Start,
-    DRV_IIC_HW_Stop,
-    DRV_IIC_HW_Send,
-    DRV_IIC_HW_WaitAck,
-    DRV_IIC_HW_ReadByte,
+    .init = DRV_IIC_HW_Init,
+    .start = DRV_IIC_HW_Start,
+    .stop = DRV_IIC_HW_Stop,
+    .send = DRV_IIC_HW_Send,
+    .wait_ack = DRV_IIC_HW_WaitAck,
+    .read_byte = DRV_IIC_HW_ReadByte,
 };
 //加硬件操作iic时，最科学的做法是定义一个新的操作集(包括里面的函数)，给新的对象绑定新的操作集
 
@@ -51,13 +51,14 @@ void DRV_IIC_InitAll(void) {
     }
 }
 
-IIC_Handle_t *DRV_IIC_GetHandle(DRV_IIC_BusId_t bus_id) {
-    DRV_IIC_Bus *bus = DRV_IIC_GetBus(bus_id);
-    if (bus == 0) {
-        return 0;
-    }
-    return &bus->handle;
-}
+// 向后兼容接口，直接返回对应总线的句柄指针
+// IIC_Handle_t *DRV_IIC_GetHandle(DRV_IIC_BusId_t bus_id) {
+//     DRV_IIC_Bus *bus = DRV_IIC_GetBus(bus_id);
+//     if (bus == 0) {
+//         return 0;
+//     }
+//     return &bus->handle;
+// }
 
 static int DRV_IIC_HW_Init(DRV_IIC_Bus *bus) {
     IIC_GPIO_Init(&bus->handle);
