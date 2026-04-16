@@ -42,3 +42,11 @@ void BSP_RTC_Init(uint8_t Hour, uint8_t Minute) {
 	Rtc_AlmIeCmd(TRUE); 			
 	EnableNvic(RTC_IRQn, IrqLevel3, TRUE);
 }
+
+en_result_t BSP_RTC_ReadDateTime(stc_rtc_time_t *time) {
+    return Rtc_ReadDateTime(time);
+}
+
+en_result_t BSP_RTC_SetTime(const stc_rtc_time_t *time) {
+    return Rtc_SetTime((stc_rtc_time_t *)time);
+}

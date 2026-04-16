@@ -3,10 +3,9 @@
 #include "app_ui.h"
 #include "app_vehicle.h"
 #include "drv_can.h"
+#include "drv_rtc.h"
 #include "drv_time.h"
 #include "drv_touch.h"
-
-#include "rtc.h"
 
 uint16_t sys_tire_perimeter = 1619;
 uint8_t sys_speed_pulse = 40;
@@ -49,11 +48,12 @@ void UI_Button_Task(void) {
                     break;
                 case MODE_TIME_SET_MIN: {
                     stc_rtc_time_t time;
-                    if (Ok == Rtc_ReadDateTime(&time)) {
+                    // 只改你要改的时分，不破坏其他时间字段
+                    if (Ok == DRV_RTC_ReadDateTime(&time)) {
                         time.u8Hour = DEC2BCD(hour);
                         time.u8Minute = DEC2BCD(minute);
                         time.u8Second = 0;
-                        Rtc_SetTime(&time);
+                        DRV_RTC_SetTime(&time);
                     }
                     current_display_mode = MODE_CLOCK;
                     Save_Mileage_To_EEPROM();
@@ -104,11 +104,11 @@ void UI_Button_Task(void) {
         if (DRV_Time_Millis() - setting_timer >= 10000) {
             // 超时退出并自动保存当前设定的时间
             stc_rtc_time_t time;
-            if (Ok == Rtc_ReadDateTime(&time)) {
+            if (Ok == DRV_RTC_ReadDateTime(&time)) {
                 time.u8Hour = DEC2BCD(hour);
                 time.u8Minute = DEC2BCD(minute);
                 time.u8Second = 0;
-                Rtc_SetTime(&time);
+                DRV_RTC_SetTime(&time);
             }
             current_display_mode = MODE_CLOCK;
             Save_Mileage_To_EEPROM();

@@ -6,7 +6,6 @@
 #include "lpm.h"
 
 #include "bsp_gpio.h"
-#include "bsp_rtc.h"
 #include "bsp_sys.h"
 
 #include "drv_can.h"
@@ -14,6 +13,7 @@
 #include "drv_eeprom.h"
 #include "drv_et6934.h"
 #include "drv_iic.h"
+#include "drv_rtc.h"
 #include "drv_time.h"
 #include "drv_touch.h"
 
@@ -37,7 +37,7 @@ int32_t main(void) {
     BSP_GPIO_Unused_Init();
     (void)DRV_EEPROM_Init();
     DRV_ADC_Init();
-    BSP_RTC_Init(12, 0);
+    (void)DRV_RTC_Init(12, 0); // 明确忽略返回值
     DRV_Touch_Init();
     DRV_CAN_Init();
     WDT_Init();
@@ -51,7 +51,7 @@ int32_t main(void) {
             if (current_display_mode != MODE_TIME_SET_HOUR &&
                 current_display_mode != MODE_TIME_SET_MIN) {
                 stc_rtc_time_t readtime;
-                if (Ok == Rtc_ReadDateTime(&readtime)) {
+                if (Ok == DRV_RTC_ReadDateTime(&readtime)) {
                     second = BCD2DEC(readtime.u8Second);
                     minute = BCD2DEC(readtime.u8Minute);
                     hour = BCD2DEC(readtime.u8Hour);
