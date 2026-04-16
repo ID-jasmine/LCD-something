@@ -6,6 +6,7 @@
 !/BSP/
 !/DRV/
 !/source/
+!/.vscode/
 
 # 3. 如果想在 source 里只保留特定的 .c 和 .h
 # 先忽略 source 文件夹下的所有内容
@@ -16,4 +17,5 @@
 
 # 4. (可选) 建议保留 Git 配置文件本身和 VS Code 基础配置
 !.gitignore
-!/.vscode/
+/.vscode/*
+!/.vscode/c_cpp_properties.json

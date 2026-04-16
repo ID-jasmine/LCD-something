@@ -1,20 +1,29 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "ARM-Embedded",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "_DEBUG",
-                "UNICODE",
-                "_UNICODE"
+                // "HC32L073KATE",
+                "_DEBUG"
             ],
-            "compilerPath": "C:\\msys64\\ucrt64\\bin\\gcc.exe",
-            "cStandard": "c17",
-            "cppStandard": "gnu++17",
-            "intelliSenseMode": "windows-gcc-x64",
-            "compileCommands": "${workspaceFolder}/compile_commands.json"
+            "compilerPath": "D:\\ARM_tools\\arm-none-eabi-gcc_text\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-arm",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/APP",
+                    "${workspaceFolder}/BSP",
+                    "${workspaceFolder}/DRV",
+                    "${workspaceFolder}/library",
+                    "${workspaceFolder}/source"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
         }
     ],
     "version": 4
