@@ -8,8 +8,8 @@
 #include "bsp_gpio.h"
 #include "bsp_sys.h"
 
-#include "drv_can.h"
 #include "drv_adc.h"
+#include "drv_can.h"
 #include "drv_eeprom.h"
 #include "drv_et6934.h"
 #include "drv_iic.h"
@@ -24,9 +24,8 @@
 static volatile uint32_t sys_1ms_cnt = 0; // 1ms
 static volatile uint8_t rtc_time_1s_flag = 0;
 static volatile uint16_t IGN_CNT = 0;
-static volatile uint8_t IGN_ON_OFF = 0; // 电门
-static volatile uint8_t last_ign_state =
-    0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
+static volatile uint8_t IGN_ON_OFF = 0;        // 电门
+static volatile uint8_t last_ign_state = 0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
 static volatile uint16_t DeepSleep_cnt = 0, last_wdt_cnt = 0;
 
 int32_t main(void) {
