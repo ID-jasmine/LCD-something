@@ -2,218 +2,222 @@
 #include "drv_iic.h"
 #include "drv_time.h"
 
-static DRV_IIC_Bus *s_eeprom_bus = 0;
+#define EEPROM_ADDR_WRITE 0xA0
+#define EEPROM_ADDR_READ  0xA1
 
-// begin
+typedef struct {
+	DRV_IIC_Bus *bus;
+	uint8_t addr_write;
+	uint8_t addr_read;
+} EepromContext;
+
+static int EEPROM_Device_Init(EepromDevice *dev);
+static int EEPROM_Device_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
+									uint8_t *buffer, uint16_t length);
+static int EEPROM_Device_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
+									 const uint8_t *buffer, uint16_t length);
 static int EEPROM_HW_Init(EepromDevice *dev);
 static int EEPROM_HW_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
-                                uint8_t *buffer, uint16_t length);
+								uint8_t *buffer, uint16_t length);
 static int EEPROM_HW_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
-                                 const uint8_t *buffer, uint16_t length);
-static DRV_IIC_Bus *EEPROM_GetBus(void);
-static EepromDevice *EEPROM_GetDefaultDevice(void); // like this
+								 const uint8_t *buffer, uint16_t length);
+static int EEPROM_HW_WritePage(EepromDevice *dev, uint8_t wordAddress,
+							   const uint8_t *buffer, uint8_t length);
+static DRV_IIC_Bus *EEPROM_GetBus(EepromDevice *dev);
+static EepromDevice *EEPROM_GetDefaultDevice(void);
+static void EEPROM_Delay_5ms(void);
 
-// 实现操作集，化虚为实
 static const EepromOps s_eeprom_ops = {
-    .init = EEPROM_HW_Init,
-    .read_buffer = EEPROM_HW_ReadBuffer,
-    .write_buffer = EEPROM_HW_WriteBuffer,
+	.init = EEPROM_HW_Init,
+	.read_buffer = EEPROM_HW_ReadBuffer,
+	.write_buffer = EEPROM_HW_WriteBuffer,
 };
 
-// 实例化全局设备对象(this)
-EepromDevice g_eeprom_dev = {
-    .ops = &s_eeprom_ops,
-    .context = 0,
-    .page_size = 16,
+static EepromContext s_eeprom_context = {
+	.bus = 0,
+	.addr_write = EEPROM_ADDR_WRITE,
+	.addr_read = EEPROM_ADDR_READ,
 };
-// end
 
-// 内部阻塞延时函数
-static void EEPROM_Delay_5ms(void) {
-    uint32_t start = DRV_Time_Millis();
-    while (DRV_Time_Millis() - start < 6); // 死等至少5毫秒以上
-}
+static EepromDevice s_eeprom_dev = {
+	.ops = &s_eeprom_ops,
+	.context = &s_eeprom_context,
+	.page_size = 16,
+};
 
-// api接口实现
 int DRV_EEPROM_Init(void) {
-    return EEPROM_Device_Init(EEPROM_GetDefaultDevice());
+	return EEPROM_Device_Init(EEPROM_GetDefaultDevice());
 }
 
 int DRV_EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t *buffer, uint16_t length) {
-    return EEPROM_Device_ReadBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer, length);
+	return EEPROM_Device_ReadBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer,
+									length);
 }
 
-int DRV_EEPROM_WriteBuffer(uint8_t wordAddress, const uint8_t *buffer, uint16_t length) {
-    return EEPROM_Device_WriteBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer, length);
+int DRV_EEPROM_WriteBuffer(uint8_t wordAddress, const uint8_t *buffer,
+						   uint16_t length) {
+	return EEPROM_Device_WriteBuffer(EEPROM_GetDefaultDevice(), wordAddress, buffer,
+									 length);
 }
 
-int EEPROM_Device_Init(EepromDevice *dev) {
-    if (dev == 0 || dev->ops == 0 || dev->ops->init == 0) {
-        return -1;
-    }
-    return dev->ops->init(dev);
+static int EEPROM_Device_Init(EepromDevice *dev) {
+	if (dev == 0 || dev->ops == 0 || dev->ops->init == 0) {
+		return -1;
+	}
+	return dev->ops->init(dev);
 }
 
-int EEPROM_Device_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
-                             uint8_t *buffer, uint16_t length) {
-    if (dev == 0 || dev->ops == 0 || dev->ops->read_buffer == 0) {
-        return -1;
-    }
-    return dev->ops->read_buffer(dev, wordAddress, buffer, length);
+static int EEPROM_Device_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
+									uint8_t *buffer, uint16_t length) {
+	if (dev == 0 || dev->ops == 0 || dev->ops->read_buffer == 0) {
+		return -1;
+	}
+	return dev->ops->read_buffer(dev, wordAddress, buffer, length);
 }
 
-int EEPROM_Device_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
-                              const uint8_t *buffer, uint16_t length) {
-    if (dev == 0 || dev->ops == 0 || dev->ops->write_buffer == 0) {
-        return -1;
-    }
-    return dev->ops->write_buffer(dev, wordAddress, buffer, length);
+static int EEPROM_Device_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
+									 const uint8_t *buffer, uint16_t length) {
+	if (dev == 0 || dev->ops == 0 || dev->ops->write_buffer == 0) {
+		return -1;
+	}
+	return dev->ops->write_buffer(dev, wordAddress, buffer, length);
 }
 
-// 函数实现
 static int EEPROM_HW_Init(EepromDevice *dev) {
-    (void)dev;
-    EEPROM_Init();
-    return 0;
+	EepromContext *ctx;
+
+	if (dev == 0 || dev->context == 0) {
+		return -1;
+	}
+
+	ctx = (EepromContext *)dev->context;
+	ctx->bus = DRV_IIC_GetBus(DRV_IIC_BUS_EEPROM);
+	if (ctx->bus == 0) {
+		return -1;
+	}
+
+	(void)DRV_IIC_Bus_Init(ctx->bus);
+	return 0;
 }
 
 static int EEPROM_HW_ReadBuffer(EepromDevice *dev, uint8_t wordAddress,
-                                uint8_t *buffer, uint16_t length) {
-    (void)dev;
-    if (buffer == 0) {
-        return -1;
-    }
-    EEPROM_ReadBuffer(wordAddress, buffer, length);
-    return 0;
+								uint8_t *buffer, uint16_t length) {
+	DRV_IIC_Bus *bus;
+	EepromContext *ctx;
+
+	if (buffer == 0) {
+		return -1;
+	}
+	if (length == 0) {
+		return 0;
+	}
+
+	bus = EEPROM_GetBus(dev);
+	if (bus == 0 || bus->ops == 0 || dev == 0 || dev->context == 0) {
+		return -1;
+	}
+
+	ctx = (EepromContext *)dev->context;
+	bus->ops->start(bus);
+	bus->ops->send(bus, ctx->addr_write);
+	bus->ops->wait_ack(bus);
+	bus->ops->send(bus, wordAddress);
+	bus->ops->wait_ack(bus);
+
+	bus->ops->start(bus);
+	bus->ops->send(bus, ctx->addr_read);
+	bus->ops->wait_ack(bus);
+
+	for (uint16_t i = 0; i < length; i++) {
+		buffer[i] = bus->ops->read_byte(bus, (i == length - 1) ? 1 : 0);
+	}
+	bus->ops->stop(bus);
+	return 0;
 }
 
 static int EEPROM_HW_WriteBuffer(EepromDevice *dev, uint8_t wordAddress,
-                                 const uint8_t *buffer, uint16_t length) {
-    (void)dev;
-    if (buffer == 0) {
-        return -1;
-    }
-    EEPROM_WriteBuffer(wordAddress, (uint8_t *)buffer, length);
-    return 0;
+								 const uint8_t *buffer, uint16_t length) {
+	uint8_t page_remain;
+
+	if (dev == 0 || buffer == 0 || dev->page_size == 0) {
+		return -1;
+	}
+	if (length == 0) {
+		return 0;
+	}
+
+	page_remain = dev->page_size - (wordAddress % dev->page_size);
+	if (length <= page_remain) {
+		page_remain = length;
+	}
+
+	while (1) {
+		if (EEPROM_HW_WritePage(dev, wordAddress, buffer, page_remain) != 0) {
+			return -1;
+		}
+		if (length == page_remain) {
+			break;
+		}
+
+		wordAddress += page_remain;
+		buffer += page_remain;
+		length -= page_remain;
+		page_remain = (length > dev->page_size) ? dev->page_size : length;
+	}
+	return 0;
 }
 
-void EEPROM_Init(void) {
-    s_eeprom_bus = DRV_IIC_GetBus(DRV_IIC_BUS_EEPROM);
-    if (s_eeprom_bus == 0) {
-        return;
-    }
-    (void)DRV_IIC_Bus_Init(s_eeprom_bus);
+static int EEPROM_HW_WritePage(EepromDevice *dev, uint8_t wordAddress,
+							   const uint8_t *buffer, uint8_t length) {
+	DRV_IIC_Bus *bus;
+	EepromContext *ctx;
+
+	if (dev == 0 || dev->context == 0 || buffer == 0 || length == 0 ||
+		length > dev->page_size) {
+		return -1;
+	}
+
+	bus = EEPROM_GetBus(dev);
+	if (bus == 0 || bus->ops == 0) {
+		return -1;
+	}
+
+	ctx = (EepromContext *)dev->context;
+	bus->ops->start(bus);
+	bus->ops->send(bus, ctx->addr_write);
+	bus->ops->wait_ack(bus);
+	bus->ops->send(bus, wordAddress);
+	bus->ops->wait_ack(bus);
+	for (uint8_t i = 0; i < length; i++) {
+		bus->ops->send(bus, buffer[i]);
+		bus->ops->wait_ack(bus);
+	}
+	bus->ops->stop(bus);
+
+	EEPROM_Delay_5ms();
+	return 0;
 }
 
-void EEPROM_WriteByte(uint8_t wordAddress, uint8_t data) {
-    DRV_IIC_Bus *bus = EEPROM_GetBus();
-    if (bus == 0 || bus->ops == 0) {
-        return;
-    }
+static DRV_IIC_Bus *EEPROM_GetBus(EepromDevice *dev) {
+	EepromContext *ctx;
 
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_WRITE);
-    bus->ops->wait_ack(bus);
-    bus->ops->send(bus, wordAddress);
-    bus->ops->wait_ack(bus);
-    bus->ops->send(bus, data);
-    bus->ops->wait_ack(bus);
-    bus->ops->stop(bus);
-    
-    EEPROM_Delay_5ms(); // 必须阻塞等待
-}
+	if (dev == 0 || dev->context == 0) {
+		return 0;
+	}
 
-uint8_t EEPROM_ReadByte(uint8_t wordAddress) {
-    uint8_t data = 0;
-    DRV_IIC_Bus *bus = EEPROM_GetBus();
-    if (bus == 0 || bus->ops == 0) {
-        return 0;
-    }
-
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_WRITE);
-    bus->ops->wait_ack(bus);
-    bus->ops->send(bus, wordAddress);
-    bus->ops->wait_ack(bus);
-
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_READ);
-    bus->ops->wait_ack(bus);
-
-    data = bus->ops->read_byte(bus, 1);
-    bus->ops->stop(bus);
-    return data;
-}
-
-// ================= 高级连续读写 =================
-
-void EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length) {
-    if (length == 0) return;
-    DRV_IIC_Bus *bus = EEPROM_GetBus();
-    if (bus == 0 || bus->ops == 0) {
-        return;
-    }
-
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_WRITE);
-    bus->ops->wait_ack(bus);
-    bus->ops->send(bus, wordAddress);
-    bus->ops->wait_ack(bus);
-
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_READ);
-    bus->ops->wait_ack(bus);
-
-    for (uint16_t i = 0; i < length; i++) {
-        buffer[i] = bus->ops->read_byte(bus, (i == length - 1) ? 1 : 0);
-    }
-    bus->ops->stop(bus);
-}
-
-// 内部单页写入
-static void EEPROM_WritePage(uint8_t wordAddress, uint8_t* buffer, uint8_t length) {
-    if (length == 0 || length > 16) return;
-    DRV_IIC_Bus *bus = EEPROM_GetBus();
-    if (bus == 0 || bus->ops == 0) {
-        return;
-    }
-
-    bus->ops->start(bus);
-    bus->ops->send(bus, EEPROM_ADDR_WRITE);
-    bus->ops->wait_ack(bus);
-    bus->ops->send(bus, wordAddress);
-    bus->ops->wait_ack(bus);
-    for (uint8_t i = 0; i < length; i++) {
-        bus->ops->send(bus, buffer[i]);
-        bus->ops->wait_ack(bus);
-    }
-    bus->ops->stop(bus);
-    EEPROM_Delay_5ms(); // 一页只需等1次
-}
-
-// 智能跨页写入 (外部直接调用这个)
-void EEPROM_WriteBuffer(uint8_t wordAddress, uint8_t* buffer, uint16_t length) {
-    uint8_t pageRemain = 16 - (wordAddress % 16); 
-    if (length <= pageRemain) pageRemain = length; 
-
-    while (1) {
-        EEPROM_WritePage(wordAddress, buffer, pageRemain);
-        if (length == pageRemain) break; 
-        
-        wordAddress += pageRemain; 
-        buffer += pageRemain;      
-        length -= pageRemain;      
-        pageRemain = (length > 16) ? 16 : length;
-    }
-}
-
-static DRV_IIC_Bus *EEPROM_GetBus(void) {
-    if (s_eeprom_bus == 0) {
-        EEPROM_Init();
-    }
-    return s_eeprom_bus;
+	ctx = (EepromContext *)dev->context;
+	if (ctx->bus == 0) {
+		(void)EEPROM_HW_Init(dev);
+	}
+	return ctx->bus;
 }
 
 static EepromDevice *EEPROM_GetDefaultDevice(void) {
-    return &g_eeprom_dev;
+	return &s_eeprom_dev;
+}
+
+static void EEPROM_Delay_5ms(void) {
+	uint32_t start = DRV_Time_Millis();
+	while (DRV_Time_Millis() - start < 6) {
+	}
 }
