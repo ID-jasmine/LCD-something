@@ -21,6 +21,8 @@
 #include "app_ui.h"
 #include "app_vehicle.h"
 
+#define model_switch 0
+
 static volatile uint32_t sys_1ms_cnt = 0; // 1ms
 static volatile uint8_t rtc_time_1s_flag = 0;
 static volatile uint16_t IGN_CNT = 0;
@@ -95,6 +97,11 @@ int32_t main(void)
 
 		if (IGN_ON_OFF)
 		{
+#if model_switch == 1
+			DRC_ET6934_ClearAll();
+			DRC_ET6934_SetAll();
+			DRC_ET6934_Refresh();
+#else
 			__NOP(); // 插入一个单周期的空指令，这里绝对能打上断点,防止优化
 			if (ZiJian_Start == 0)
 			{
@@ -130,6 +137,7 @@ int32_t main(void)
 					UI_UpdateNormalDisplay(); // 渲染正常内容
 				}
 			}
+#endif
 		}
 		else
 		{
